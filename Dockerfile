@@ -121,7 +121,7 @@ RUN apt-get update && apt-get install -y \
 # Install TensorFlow, Theano, Keras, Caffe
 RUN python -m ipykernel.kernelspec && \
 	pip --no-cache-dir install \
-	https://storage.googleapis.com/tensorflow/linux/${cpu}/tensorflow-1.1.0-cp27-none-linux_x86_64.whl && \
+	https://storage.googleapis.com/tensorflow/linux/cpu/tensorflow-1.1.0-cp27-none-linux_x86_64.whl && \
 	pip --no-cache-dir install git+git://github.com/Theano/Theano.git@rel-0.9.0 && \
 	echo "[global]\ndevice=cpu\nfloatX=float32\nmode=FAST_RUN \
 		\n[lib]\ncnmem=0.95 \
