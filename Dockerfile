@@ -108,6 +108,7 @@ RUN apt-get update && apt-get install -y \
 		path.py \
 		futures \
 		tqdm \
+		flask \
 		instagram-scraper \
 		clarifai \
 		Pillow \
