@@ -146,11 +146,7 @@ RUN python -m ipykernel.kernelspec && \
 	cd /root/opencv && \
 	mkdir build && \
 	cd build && \
-	cmake -DCMAKE_LIBRARY_PATH=/usr/local/cuda/lib64/stubs -DCUDA_CUDA_LIBRARY=/usr/local/cuda/lib64/stubs/libcuda.so -DWITH_QT=ON -DWITH_OPENGL=ON -DFORCE_VTK=ON -DWITH_TBB=ON -DWITH_GDAL=ON -DWITH_XINE=ON -DBUILD_EXAMPLES=ON .. && \
-	make -j"$(nproc)"  && \
-	make install && \
-	ldconfig && \
-	echo 'ln /dev/null /dev/raw1394' >> ~/.bashrc
+	echo 'cd /root/opencv/build && cmake -DCMAKE_LIBRARY_PATH=/usr/local/cuda/lib64/stubs -DCUDA_CUDA_LIBRARY=/usr/local/cuda/lib64/stubs/libcuda.so -DWITH_QT=ON -DWITH_OPENGL=ON -DFORCE_VTK=ON -DWITH_TBB=ON -DWITH_GDAL=ON -DWITH_XINE=ON -DBUILD_EXAMPLES=ON .. && make -j"$(nproc)" && make install && ldconfig && echo ln /dev/null /dev/raw1394 >> ~/.bashrc' >> /root/opencv_readme.txt 
 
 # Set up Caffe environment variables
 ENV CAFFE_ROOT=/root/caffe

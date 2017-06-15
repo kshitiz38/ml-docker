@@ -37,7 +37,7 @@ docker pull zitihsk/ml-docker:cpu
 ```bash
 docker pull zitihsk/ml-docker:gpu
 ```
-<!-- An automated build for the GPU image is not available currently due to timeout restrictions in Docker's automated build process. I'll look into solving this in the future, but for now you'll have to build the GPU version locally using Option 2 below. -->
+The automated build for gpu does not have opencv3 installed due to build timeout from docker however you can run command listed in /root/opencv_readme.txt or edit it in Dockerfile and build locally using option described below
 
 #### Option 2: Build the Docker image locally
 Alternatively, you can build the images locally. Also, since the GPU version is not available in Docker Hub at the moment, you'll have to follow this if you want to GPU version. Note that this will take an hour or two depending on your machine since it compiles a few libraries from scratch.
