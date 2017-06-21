@@ -1,0 +1,55 @@
+FROM zitihsk/ml-docker:gpu-base
+
+MAINTAINER Kshitiz Sharma <kshitizsharma38@gmail.com>
+
+# Install some dependencies
+RUN apt-get update && apt-get install -y \
+		openjdk-8-jdk \
+		openjdk-8-jre-headless \
+		rsync \
+		&& \
+		apt-get clean && \
+		apt-get autoremove && \
+		rm -rf /var/lib/apt/lists/* && \
+	# Running bazel inside a `docker build` command causes trouble, cf:
+	#   https://github.com/bazelbuild/bazel/issues/134
+	# The easiest solution is to set up a bazelrc file forcing --batch.
+	echo "startup --batch" >>/etc/bazel.bazelrc && \
+	# Similarly, we need to workaround sandboxing issues:
+	#   https://github.com/bazelbuild/bazel/issues/418
+	echo "build --spawn_strategy=standalone --genrule_strategy=standalone" >>/etc/bazel.bazelrc && \
+	# Install the most recent bazel release.
+	mkdir /bazel && \
+	cd /bazel && \
+	export BAZEL_VERSION=0.5.0 && \
+	curl -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/57.0.2987.133 Safari/537.36" -fSsL -O https://github.com/bazelbuild/bazel/releases/download/$BAZEL_VERSION/bazel-$BAZEL_VERSION-installer-linux-x86_64.sh && \
+	curl -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/57.0.2987.133 Safari/537.36" -fSsL -o /bazel/LICENSE.txt https://raw.githubusercontent.com/bazelbuild/bazel/master/LICENSE && \
+	chmod +x bazel-*.sh && \
+	./bazel-$BAZEL_VERSION-installer-linux-x86_64.sh && \
+	cd / && rm -f /bazel/bazel-$BAZEL_VERSION-installer-linux-x86_64.sh && \
+	# Download and build TensorFlow.
+	git clone https://github.com/tensorflow/tensorflow.git && \
+	cd tensorflow && \
+	git checkout r1.2 && \
+	# Configure the build for our CUDA configuration.
+	export CI_BUILD_PYTHON=python && \
+	export LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:$LD_LIBRARY_PATH && \
+	export TF_NEED_CUDA=1 && \
+	export TF_CUDA_COMPUTE_CAPABILITIES=3.0,3.5,5.2,6.0,6.1 && \
+	tensorflow/tools/ci_build/builds/configured GPU bazel build -c opt --config=cuda --cxxopt="-D_GLIBCXX_USE_CXX11_ABI=0" tensorflow/tools/pip_package:build_pip_package && \
+	bazel-bin/tensorflow/tools/pip_package/build_pip_package /tmp/pip && \
+	pip --no-cache-dir install --upgrade --force-reinstall /tmp/pip/tensorflow-*.whl && \
+	rm -rf /tmp/pip && \
+	rm -rf /root/.cache && \
+	# Clean up pip wheel and Bazel cache when done.
+	cd /root && rm opencv_readme.txt && cd /root/opencv/build && \
+	cmake -DCMAKE_LIBRARY_PATH=/usr/local/cuda/lib64/stubs -DCUDA_CUDA_LIBRARY=/usr/local/cuda/lib64/stubs/libcuda.so -DWITH_QT=ON -DWITH_OPENGL=ON -DFORCE_VTK=ON -DWITH_TBB=ON -DWITH_GDAL=ON -DWITH_XINE=ON -DBUILD_EXAMPLES=ON .. && \
+	make -j"$(nproc)" && \
+	make install && ldconfig && \
+	echo ln /dev/null /dev/raw1394
+
+# Expose Ports for TensorBoard (6006), Ipython (8888), Flask (5000)
+EXPOSE 6006 8888 5000
+
+WORKDIR "/root"
+CMD ["/bin/bash"]
