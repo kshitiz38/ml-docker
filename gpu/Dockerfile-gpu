@@ -2,19 +2,11 @@ FROM zitihsk/ml-docker:gpu-base
 
 MAINTAINER Kshitiz Sharma <kshitizsharma38@gmail.com>
 
-# Install some dependencies
-RUN apt-get update && apt-get install -y \
-		openjdk-8-jdk \
-		openjdk-8-jre-headless \
-		rsync \
-		&& \
-		apt-get clean && \
-		apt-get autoremove && \
-		rm -rf /var/lib/apt/lists/* && \
-	# Running bazel inside a `docker build` command causes trouble, cf:
-	#   https://github.com/bazelbuild/bazel/issues/134
-	# The easiest solution is to set up a bazelrc file forcing --batch.
-	echo "startup --batch" >>/etc/bazel.bazelrc && \
+# Running bazel inside a `docker build` command causes trouble, cf:
+#   https://github.com/bazelbuild/bazel/issues/134
+# The easiest solution is to set up a bazelrc file forcing --batch.
+
+RUN echo "startup --batch" >>/etc/bazel.bazelrc && \
 	# Similarly, we need to workaround sandboxing issues:
 	#   https://github.com/bazelbuild/bazel/issues/418
 	echo "build --spawn_strategy=standalone --genrule_strategy=standalone" >>/etc/bazel.bazelrc && \
@@ -47,9 +39,6 @@ RUN apt-get update && apt-get install -y \
 	make -j"$(nproc)" && \
 	make install && ldconfig && \
 	echo ln /dev/null /dev/raw1394
-
-# Expose Ports for TensorBoard (6006), Ipython (8888), Flask (5000)
-EXPOSE 6006 8888 5000
 
 WORKDIR "/root"
 CMD ["/bin/bash"]
