@@ -66,6 +66,7 @@ RUN apt-get update && apt-get install -y \
 		ant \
 		unzip \
 		rsync \
+		zsh \
 		default-jdk \
 		doxygen \
 		libfreetype6-dev \
@@ -124,7 +125,7 @@ RUN apt-get update && apt-get install -y \
 # Install TensorFlow, Theano, Keras, Caffe
 RUN python -m ipykernel.kernelspec && \
 	pip --no-cache-dir install \
-	https://storage.googleapis.com/tensorflow/linux/cpu/tensorflow-1.3.0-cp27-none-linux_x86_64.whl && \
+	https://storage.googleapis.com/tensorflow/linux/cpu/tensorflow-1.4.1-cp27-none-linux_x86_64.whl && \
 	pip --no-cache-dir install git+git://github.com/Theano/Theano.git@rel-0.9.0 && \
 	echo "[global]\ndevice=cpu\nfloatX=float32\nmode=FAST_RUN \
 		\n[lib]\ncnmem=0.95 \
@@ -132,7 +133,7 @@ RUN python -m ipykernel.kernelspec && \
 		\n[blas]\nldflag = -L/usr/lib/openblas-base -lopenblas \
 		\n[DebugMode]\ncheck_finite=1" \
 	> /root/.theanorc && \
-	pip --no-cache-dir install git+git://github.com/fchollet/keras.git@2.0.8 && \
+	pip --no-cache-dir install git+git://github.com/fchollet/keras.git@2.1.3 && \
 	git clone -b master --depth 1 https://github.com/BVLC/caffe.git /root/caffe && \
 	cd /root/caffe && \
 	cat python/requirements.txt | xargs -n1 pip install && \
