@@ -2,6 +2,46 @@ FROM zitihsk/ml-docker:gpu-base
 
 MAINTAINER Kshitiz Sharma <kshitizsharma38@gmail.com>
 
+
+# Install Theano, Caffe
+RUN python -m ipykernel.kernelspec && \
+	ln -s /usr/lib/x86_64-linux-gnu/libcudnn.so.6 /usr/lib/x86_64-linux-gnu/libcudnn.so.5 && \
+	pip --no-cache-dir install pycuda; pip --no-cache-dir install git+https://github.com/lebedov/scikit-cuda.git#egg=scikit-cuda && \
+	pip --no-cache-dir install git+git://github.com/Theano/Theano.git@rel-0.9.0 && \
+	echo "[global]\ndevice=gpu0\nfloatX=float32\nmode=FAST_RUN \
+		\n[lib]\ncnmem=0.95 \
+		\n[nvcc]\nfastmath=True \
+		\n[blas]\nldflag = -L/usr/lib/openblas-base -lopenblas \
+		\n[DebugMode]\ncheck_finite=1" \
+	> /root/.theanorc && \
+
+	git clone -b master --depth 1 https://github.com/BVLC/caffe.git /root/caffe && \
+	cd /root/caffe && \
+	cat python/requirements.txt | xargs -n1 pip install && \
+	git clone https://github.com/NVIDIA/nccl.git && cd nccl && make -j install && cd .. && rm -rf nccl && \
+	mkdir build && cd build && \
+	cmake -DUSE_CUDNN=1 -DUSE_NCCL=1 -DBLAS=Open .. && \
+	make -j"$(nproc)" all && \
+	make install && \
+	echo "/root/caffe/build/lib" >> /etc/ld.so.conf.d/caffe.conf && ldconfig && \
+
+	git clone --depth 1 https://github.com/opencv/opencv.git /root/opencv && \
+	cd /root/opencv && \
+	mkdir build && \
+	cd build && \
+	cd /root/opencv/build && \
+	cmake -DCMAKE_LIBRARY_PATH=/usr/local/cuda/lib64/stubs -DCUDA_CUDA_LIBRARY=/usr/local/cuda/lib64/stubs/libcuda.so -DWITH_QT=ON -DWITH_OPENGL=ON -DFORCE_VTK=ON -DWITH_TBB=ON -DWITH_GDAL=ON -DWITH_XINE=ON -DBUILD_EXAMPLES=ON .. && \
+	make -j"$(nproc)" && \
+	make install && ldconfig && \
+	echo ln /dev/null /dev/raw1394
+
+# Set up Caffe environment variables
+ENV CAFFE_ROOT=/root/caffe
+ENV PYCAFFE_ROOT=$CAFFE_ROOT/python
+ENV PYTHONPATH=$PYCAFFE_ROOT:$PYTHONPATH \
+	PATH=$CAFFE_ROOT/build/tools:$PYCAFFE_ROOT:$PATH
+
+
 # Running bazel inside a `docker build` command causes trouble, cf:
 #   https://github.com/bazelbuild/bazel/issues/134
 # The easiest solution is to set up a bazelrc file forcing --batch.
@@ -13,16 +53,17 @@ RUN echo "startup --batch" >>/etc/bazel.bazelrc && \
 	# Install the most recent bazel release.
 	mkdir /bazel && \
 	cd /bazel && \
-	export BAZEL_VERSION=0.5.0 && \
+	export BAZEL_VERSION=0.8.0 && \
 	curl -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/57.0.2987.133 Safari/537.36" -fSsL -O https://github.com/bazelbuild/bazel/releases/download/$BAZEL_VERSION/bazel-$BAZEL_VERSION-installer-linux-x86_64.sh && \
 	curl -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/57.0.2987.133 Safari/537.36" -fSsL -o /bazel/LICENSE.txt https://raw.githubusercontent.com/bazelbuild/bazel/master/LICENSE && \
 	chmod +x bazel-*.sh && \
 	./bazel-$BAZEL_VERSION-installer-linux-x86_64.sh && \
 	cd / && rm -f /bazel/bazel-$BAZEL_VERSION-installer-linux-x86_64.sh && \
+	
 	# Download and build TensorFlow.
 	git clone https://github.com/tensorflow/tensorflow.git && \
 	cd tensorflow && \
-	git checkout r1.2 && \
+	git checkout r1.5 && \
 	# Configure the build for our CUDA configuration.
 	export CI_BUILD_PYTHON=python && \
 	export LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:$LD_LIBRARY_PATH && \
@@ -34,11 +75,18 @@ RUN echo "startup --batch" >>/etc/bazel.bazelrc && \
 	rm -rf /tmp/pip && \
 	rm -rf /root/.cache && \
 	# Clean up pip wheel and Bazel cache when done.
-	cd /root && rm opencv_readme.txt && cd /root/opencv/build && \
-	cmake -DCMAKE_LIBRARY_PATH=/usr/local/cuda/lib64/stubs -DCUDA_CUDA_LIBRARY=/usr/local/cuda/lib64/stubs/libcuda.so -DWITH_QT=ON -DWITH_OPENGL=ON -DFORCE_VTK=ON -DWITH_TBB=ON -DWITH_GDAL=ON -DWITH_XINE=ON -DBUILD_EXAMPLES=ON .. && \
-	make -j"$(nproc)" && \
-	make install && ldconfig && \
-	echo ln /dev/null /dev/raw1394
+
+	pip --no-cache-dir install git+git://github.com/fchollet/keras.git@2.1.3 && \
+	
+
+# Set up notebook config
+COPY jupyter_notebook_config.py /root/.jupyter/
+
+# Jupyter has issues with being run directly: https://github.com/ipython/ipython/issues/7062
+COPY run_jupyter.sh /root/
+
+# Expose Ports for TensorBoard (6006), Ipython (8888), Flask (5000)
+EXPOSE 6006 8888 5000
 
 WORKDIR "/root"
 CMD ["/bin/bash"]
